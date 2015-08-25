@@ -5,8 +5,11 @@
 #define SIZE_CTR_FIRM   0x000F3000
 #define OFF_CTR_FIRM0   0x0B130000
 #define OFF_CTR_FIRM1   0x0B530000
-#define XORPAD_SIZE     (8 * 1024 * 1024)
-// #define NODECRYPT
+
+#define FIRM_SIZE       (4 * 1024 * 1024)
+#define XORPAD_SIZE     (2 * FIRM_SIZE)
+#define UNIT_SIZE       0x1000
+
 
 void showhelp_exit() {
     printf(" usage: 3DSFIRMtool [-d|-i] [NAND] [FIRM0FIRM1] [XORPAD]\n");
@@ -23,6 +26,9 @@ int main( int argc, char** argv )
     unsigned char* bufenc;
     unsigned char* bufxor;
     int dump;
+    
+    size_t tsize_f0;
+    size_t tsize_f1;
     
     size_t offset;
     size_t size;
@@ -91,17 +97,38 @@ int main( int argc, char** argv )
         return 0;
     }
     
-    // prepare xorpad
-    printf("processing... ");
+    // read input data
+    fread(bufenc, 1, XORPAD_SIZE, fp_in);
+    
+    // find firm0firm1 true size
+    for (tsize_f0 = FIRM_SIZE; tsize_f0 > 0; tsize_f0--)
+        if (bufenc[tsize_f0 - 1] != 0x00) break;
+    if (tsize_f0 % UNIT_SIZE) tsize_f0 += UNIT_SIZE - (tsize_f0 % UNIT_SIZE);
+    for (tsize_f1 = FIRM_SIZE; tsize_f1 > 0; tsize_f1--)
+        if (bufenc[FIRM_SIZE + tsize_f1 - 1] != 0x00) break;
+    if (tsize_f1 % UNIT_SIZE) tsize_f1 += UNIT_SIZE - (tsize_f1 % UNIT_SIZE);
+    printf("FIRM0 true size: %X\nFIRM1 true size: %X\n", tsize_f0, tsize_f1);
+    
+    // read and prepare xorpad
     memset(bufxor, 0x00, XORPAD_SIZE);
     fseek(fp_xor, 0, SEEK_SET);
-    fread(bufxor, 1, SIZE_CTR_FIRM, fp_xor);
-    fseek(fp_xor, OFF_CTR_FIRM1 - OFF_CTR_FIRM0, SEEK_SET);
-    fread(bufxor + OFF_CTR_FIRM1 - OFF_CTR_FIRM0, 1, SIZE_CTR_FIRM, fp_xor);
+    fread(bufxor, 1, tsize_f0, fp_xor);
+    fseek(fp_xor, FIRM_SIZE, SEEK_SET);
+    fread(bufxor + FIRM_SIZE, 1, tsize_f1, fp_xor);
     
-    // apply xorpad
-    fread(bufenc, 1, XORPAD_SIZE, fp_in);
-    for (size_t i = 0; i < XORPAD_SIZE; i++) bufenc[i] = bufenc[i]^bufxor[i];
+    // apply xorpad, check for differences
+    printf("processing... ");
+    if (!dump) { // when injecting: check, then apply
+        if (memcmp(bufenc, bufenc + FIRM_SIZE, FIRM_SIZE) != 0)
+            printf("\nWARNING: FIRM0 & FIRM1 do not match!\n");
+        for (size_t i = 0; i < XORPAD_SIZE; i++)
+            bufenc[i] = bufenc[i]^bufxor[i];
+    } else { // when dumping: apply, then check
+        for (size_t i = 0; i < XORPAD_SIZE; i++)
+            bufenc[i] = bufenc[i]^bufxor[i];
+        if (memcmp(bufenc, bufenc + FIRM_SIZE, FIRM_SIZE) != 0)
+            printf("\nWARNING: FIRM0 & FIRM1 do not match!\n");
+    }
     fwrite(bufenc, 1, XORPAD_SIZE, fp_out);
     printf("done!\n\n");
     
