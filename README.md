@@ -1,5 +1,2 @@
 # 3DSFIRMtool
-Experimental tool to dump and inject FIRM0FIRM1 partitions into a 3DS NAND backup. Instructions are included in tool.
-
-Generate FIRM0FIRM1 xorpads using Shadowtrances Decrypt9UI mod:
-https://github.com/Shadowtrance/Decrypt9/tree/mset
+Instructions are included in tool. Generate FIRM0FIRM1 xorpads using [Decrypt9WIP](https://github.com/d0k3/Decrypt9WIP) or [OTPHelper](https://github.com/d0k3/OTPHelper).
