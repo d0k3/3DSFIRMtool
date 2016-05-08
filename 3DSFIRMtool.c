@@ -144,7 +144,7 @@ int main( int argc, char** argv )
             }
         }
         if ((memcmp(bufenc, "FIRM", 4) != 0) || !tsize_firm) {
-            printf("\nbad xorpad or corrupt nand.bin, won't dump!\n\n", (char*) bufenc, tsize_firm);
+            printf("\nbad xorpad or corrupt nand.bin, won't dump!\n\n");
             return 0;
         }
         for (size_t i = 512; i < tsize_firm; i++)
